@@ -1,0 +1,81 @@
+name: minhas_infos
+description: "Lembrex — app offline-first de gestão de informações e lembretes pessoais."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.9.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # Banco local
+  drift: ^2.18.0
+  sqlite3_flutter_libs: ^0.5.0
+  path_provider: ^2.1.0
+  path: ^1.9.0
+
+  # Editor rico
+  appflowy_editor: ^3.3.0
+
+  # Estado
+  flutter_riverpod: ^2.5.0
+
+  # HTTP
+  http: ^1.2.0
+
+  # Preferências
+  shared_preferences: ^2.2.0
+
+  # Notificações
+  flutter_local_notifications: ^17.0.0
+  timezone: ^0.9.0
+
+  # Env
+  flutter_dotenv: ^5.1.0
+
+  # Utilitários
+  intl: ^0.19.0
+  timeago: ^3.6.0
+  google_fonts: ^6.2.1
+
+  # Desktop
+  window_manager: ^0.3.8
+
+  # Seleção de imagens (câmera e galeria — mobile) e arquivos (desktop)
+  image_picker: ^1.1.0
+  file_picker: ^8.0.0
+
+  # Autenticação e segurança
+  local_auth: ^2.2.0
+  flutter_secure_storage: ^9.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+  # Drift code generation
+  drift_dev: ^2.18.0
+  build_runner: ^2.4.0
+
+  # Ícone do app
+  flutter_launcher_icons: ^0.13.1
+
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/icon/icon.png"
+  adaptive_icon_background: "#1C1C1E"
+  adaptive_icon_foreground: "assets/icon/icon.png"
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - .env
+    - assets/icon/
