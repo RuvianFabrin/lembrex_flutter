@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -56,7 +54,7 @@ class _LockPageState extends State<LockPage> {
   }
 
   Future<void> _tentarDesbloquear() async {
-    if (isDesktop && Platform.isLinux) {
+    if (isDesktop) {
       setState(() => _mostrarCampoPin = true);
       return;
     }

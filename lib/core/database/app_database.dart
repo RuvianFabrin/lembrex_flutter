@@ -49,8 +49,10 @@ class AppDatabase extends _$AppDatabase {
           }
         },
         beforeOpen: (details) async {
-          // Garante integridade referencial no SQLite
           await customStatement('PRAGMA foreign_keys = ON');
+          // Upsert garante que flags de categoria no banco sempre refletem o
+          // código — útil quando o app é atualizado após o banco já existir.
+          await _seedCategorias();
         },
       );
 
@@ -77,7 +79,7 @@ class AppDatabase extends _$AppDatabase {
     ];
 
     for (final c in _flags) {
-      await into(categorias).insert(CategoriasCompanion.insert(
+      final companion = CategoriasCompanion.insert(
         id: c.id,
         nome: c.nome,
         icone: c.icone,
@@ -91,7 +93,8 @@ class AppDatabase extends _$AppDatabase {
         mostraNumeroDocumento: Value(c.mostraNumeroDocumento),
         mostraPrazo: Value(c.mostraPrazo),
         ordem: Value(c.ordem),
-      ));
+      );
+      await into(categorias).insertOnConflictUpdate(companion);
     }
   }
 }

@@ -84,6 +84,20 @@ class ConfiguracoesNotifier extends AsyncNotifier<Configuracoes> {
       state = AsyncData(atual.copyWith(lastSyncAt: quando));
     }
   }
+
+  Future<void> limparLastSync() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_keyLastSync);
+    final atual = state.valueOrNull;
+    if (atual != null) {
+      state = AsyncData(Configuracoes(
+        apiUrl: atual.apiUrl,
+        apiToken: atual.apiToken,
+        intervaloMinutos: atual.intervaloMinutos,
+        lastSyncAt: null,
+      ));
+    }
+  }
 }
 
 final configuracoesProvider =

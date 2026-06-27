@@ -24,6 +24,9 @@ import '../../shared/widgets/campo_telefone.dart';
 import '../../shared/widgets/campo_valor.dart';
 import '../../shared/widgets/campo_vencimento.dart';
 import 'registro_provider.dart';
+import 'widgets/editor_drop_zone.dart';
+import 'widgets/editor_image_block_builder.dart';
+import 'widgets/editor_paste_command.dart';
 import 'widgets/imagem_inline_widget.dart';
 
 class RegistroEditPage extends ConsumerStatefulWidget {
@@ -54,6 +57,8 @@ class _RegistroEditPageState extends ConsumerState<RegistroEditPage> {
   EditorState? _editorState;
   EditorScrollController? _scrollController;
   StreamSubscription<(TransactionTime, Transaction)>? _txSub;
+  // Último caminho do cursor — salvo antes do foco sair (ex: ao abrir image picker)
+  List<int>? _lastCursorPath;
 
   late String _id;
   late Map<String, dynamic> _extras;
@@ -66,6 +71,10 @@ class _RegistroEditPageState extends ConsumerState<RegistroEditPage> {
 
   // Nota Livre (CAT001) usa editor rico; demais categorias usam editor simples
   bool get _usarEditorRico => widget.categoriaId == 'CAT001';
+
+  // Aprendizado (CAT008) usa editor expandido (tela toda) igual Nota Livre
+  bool get _usarEditorExpandido =>
+      widget.categoriaId == 'CAT001' || widget.categoriaId == 'CAT008';
 
   @override
   void initState() {
@@ -99,6 +108,11 @@ class _RegistroEditPageState extends ConsumerState<RegistroEditPage> {
       _scrollController = EditorScrollController(editorState: state);
       state.selectionMenuItems = standardSelectionMenuItems;
       _txSub = state.transactionStream.listen((_) => _agendarSave());
+      // Memoriza o cursor para inserir imagem no lugar certo mesmo após foco sair
+      state.selectionNotifier.addListener(() {
+        final sel = state.selectionNotifier.value;
+        if (sel != null) _lastCursorPath = sel.end.path;
+      });
       setState(() => _editorState = state);
       await _carregarCategoria();
 
@@ -283,6 +297,7 @@ class _RegistroEditPageState extends ConsumerState<RegistroEditPage> {
       },
       child: Focus(
         autofocus: isDesktop,
+        onKeyEvent: null,
         child: Scaffold(
           appBar: AppBar(
             title: Text(widget.categoriaTitulo.isEmpty
@@ -316,7 +331,10 @@ class _RegistroEditPageState extends ConsumerState<RegistroEditPage> {
             editorState: _editorState!,
             scrollController: _scrollController!,
             usarEditorRico: _usarEditorRico,
+            usarEditorExpandido: _usarEditorExpandido,
             registroId: _id,
+            lastCursorPath: _lastCursorPath,
+            getBaseUrl: () => ref.read(configuracoesProvider).valueOrNull?.apiUrl,
             data: _data,
             lembrete: _lembrete,
             vencimento: _vencimento,
@@ -364,7 +382,10 @@ class _Formulario extends StatelessWidget {
   final EditorState editorState;
   final EditorScrollController scrollController;
   final bool usarEditorRico;
+  final bool usarEditorExpandido;
   final String registroId;
+  final List<int>? lastCursorPath;
+  final String? Function() getBaseUrl;
   final DateTime? data;
   final DateTime? lembrete;
   final DateTime? vencimento;
@@ -384,7 +405,10 @@ class _Formulario extends StatelessWidget {
     required this.editorState,
     required this.scrollController,
     required this.usarEditorRico,
+    required this.usarEditorExpandido,
     required this.registroId,
+    this.lastCursorPath,
+    required this.getBaseUrl,
     required this.data,
     required this.lembrete,
     required this.vencimento,
@@ -423,7 +447,9 @@ class _Formulario extends StatelessWidget {
         scrollController: scrollController,
         usarEditorRico: usarEditorRico,
         registroId: registroId,
+        lastCursorPath: lastCursorPath,
         onTituloChanged: onChanged,
+        getBaseUrl: getBaseUrl,
         expandido: expandido,
       );
 
@@ -485,6 +511,11 @@ class _Formulario extends StatelessWidget {
       );
     }
 
+    // Categoria sem campos extras que pede editor expandido (ex: Aprendizado)
+    if (usarEditorExpandido && !_temCamposExtras) {
+      return _buildEditorWidget();
+    }
+
     // Outras categorias (mobile/desktop simples): editor compacto + campos em scroll
     return SingleChildScrollView(
       child: Column(
@@ -514,7 +545,9 @@ class _EditorWidget extends StatelessWidget {
   final EditorScrollController scrollController;
   final bool usarEditorRico;
   final String registroId;
+  final List<int>? lastCursorPath;
   final VoidCallback onTituloChanged;
+  final String? Function() getBaseUrl;
   // false = altura fixa (dentro de SingleChildScrollView); true = Expanded
   final bool expandido;
 
@@ -524,26 +557,29 @@ class _EditorWidget extends StatelessWidget {
     required this.scrollController,
     required this.usarEditorRico,
     required this.registroId,
+    this.lastCursorPath,
     required this.onTituloChanged,
+    required this.getBaseUrl,
     this.expandido = true,
   });
 
   EditorStyle _buildStyle(Color textColor) {
     final config = TextStyleConfiguration(
-      text: GoogleFonts.dmSans(fontSize: 16, height: 1.5, color: textColor),
+      text: GoogleFonts.dmSans(fontSize: 16, color: textColor),
       bold: GoogleFonts.dmSans(fontWeight: FontWeight.bold),
       italic: GoogleFonts.dmSans(fontStyle: FontStyle.italic),
       underline: GoogleFonts.dmSans(decoration: TextDecoration.underline),
       strikethrough: GoogleFonts.dmSans(decoration: TextDecoration.lineThrough),
+      lineHeight: 1.4,
     );
     if (isDesktop) {
       return EditorStyle.desktop(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
         textStyleConfiguration: config,
       );
     }
     return EditorStyle.mobile(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
       textStyleConfiguration: config,
     );
   }
@@ -554,31 +590,59 @@ class _EditorWidget extends StatelessWidget {
     final textColor = theme.colorScheme.onSurface;
     final editorStyle = _buildStyle(textColor);
 
+    final zeroPadding = BlockComponentConfiguration(
+      padding: (_) => EdgeInsets.zero,
+    );
+    final blockBuilders = standardBlockComponentBuilderMap.map(
+      (key, builder) {
+        builder.configuration = zeroPadding;
+        return MapEntry(key, builder);
+      },
+    )
+      // Substitui o builder padrão de imagem pelo customizado com menu de contexto
+      ..['image'] = ImagemComMenuBuilder(configuration: zeroPadding);
+
+    // Substitui pasteCommand pelo customizado que suporta imagem do clipboard
+    final pasteComImagem = buildPasteComImagemCommand(
+      registroId: registroId,
+      getRegistroId: () => registroId,
+      getBaseUrl: getBaseUrl,
+    );
+    final commandEvents = standardCommandShortcutEvents
+        .where((e) => e.key != 'paste the content')
+        .toList()
+      ..insert(0, pasteComImagem);
+
     final appFlowyEditor = AppFlowyEditor(
       editorState: editorState,
       editorScrollController: scrollController,
       editorStyle: editorStyle,
-      blockComponentBuilders: standardBlockComponentBuilderMap,
-      commandShortcutEvents: standardCommandShortcutEvents,
+      blockComponentBuilders: blockBuilders,
+      commandShortcutEvents: commandEvents,
       characterShortcutEvents: standardCharacterShortcutEvents,
     );
 
     Widget editorArea;
     if (isDesktop) {
-      editorArea = FloatingToolbar(
-        items: [
-          paragraphItem,
-          ...headingItems,
-          placeholderItem,
-          ...markdownFormatItems,
-          quoteItem,
-          bulletedListItem,
-          numberedListItem,
-        ],
+      editorArea = EditorDropZone(
         editorState: editorState,
-        editorScrollController: scrollController,
-        textDirection: TextDirection.ltr,
-        child: appFlowyEditor,
+        getRegistroId: () => registroId,
+        getBaseUrl: getBaseUrl,
+        child: FloatingToolbar(
+          items: [
+            paragraphItem,
+            ...headingItems,
+            placeholderItem,
+            ...markdownFormatItems,
+            quoteItem,
+            bulletedListItem,
+            numberedListItem,
+          ],
+          editorState: editorState,
+          editorScrollController: scrollController,
+          textDirection: TextDirection.ltr,
+          child: appFlowyEditor,
+        ),
       );
     } else {
       // O AppFlowyEditor mobile precisa de Expanded para ter altura finita.
@@ -646,8 +710,12 @@ class _EditorWidget extends StatelessWidget {
         children: [
           tituloField,
           const Divider(height: 1),
-          if (usarEditorRico) ...[
-            ImagemInlineWidget(editorState: editorState, registroId: registroId),
+          if (usarEditorRico && !isDesktop) ...[
+            ImagemInlineWidget(
+              editorState: editorState,
+              registroId: registroId,
+              lastCursorPath: lastCursorPath,
+            ),
             const Divider(height: 1),
           ],
           Expanded(child: editorArea),

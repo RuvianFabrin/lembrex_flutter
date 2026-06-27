@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../core/sync/sync_repository.dart';
 import '../../core/utils/platform_utils.dart';
+import '../sync/sync_progress_dialog.dart';
 import '../sync/sync_provider.dart';
 import 'configuracoes_provider.dart';
 
@@ -73,17 +74,15 @@ class _ConfiguracoesPageState extends ConsumerState<ConfiguracoesPage> {
   }
 
   Future<void> _sincronizarAgora() async {
-    final service = ref.read(syncServiceProvider);
-    await service.sincronizar(manual: true);
+    await mostrarSyncProgressDialog(context, ref);
+  }
+
+  Future<void> _syncCompleto() async {
+    // Limpa lastSyncAt para forçar download de todos os registros do servidor
+    await ref.read(configuracoesProvider.notifier).limparLastSync();
+    ref.read(syncServiceProvider).resetLastSync();
     if (!mounted) return;
-    final erro = service.ultimoErro;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(erro == null ? 'Sincronização concluída ✓' : 'Erro: $erro'),
-        backgroundColor: erro == null ? Colors.green : Colors.red,
-        duration: const Duration(seconds: 5),
-      ),
-    );
+    await mostrarSyncProgressDialog(context, ref);
   }
 
   @override
@@ -196,6 +195,34 @@ class _ConfiguracoesPageState extends ConsumerState<ConfiguracoesPage> {
                 label: const Text('Redefinir PIN de desbloqueio'),
                 onPressed: () =>
                     Navigator.of(context).pushNamed('/setup-pin'),
+              ),
+              const SizedBox(height: 24),
+              const Divider(),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  const Icon(Icons.warning_amber_outlined, size: 14, color: Colors.grey),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Emergência',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(color: Colors.grey),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                icon: const Icon(Icons.sync_problem_outlined),
+                label: const Text('Forçar sync completo'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Theme.of(context).colorScheme.error,
+                  side: BorderSide(color: Theme.of(context).colorScheme.error.withAlpha(120)),
+                ),
+                onPressed: _syncCompleto,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Baixa tudo do servidor do zero. Use se os dados não estiverem aparecendo.',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(color: Colors.grey),
               ),
             ],
           ),

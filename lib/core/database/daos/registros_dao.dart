@@ -29,8 +29,26 @@ class RegistrosDao extends DatabaseAccessor<AppDatabase>
   Future<Registro?> buscarPorId(String id) =>
       (select(registros)..where((t) => t.id.equals(id))).getSingleOrNull();
 
-  Future<void> upsert(RegistrosCompanion dados) =>
-      into(registros).insertOnConflictUpdate(dados);
+  /// Retorna true se o registro foi inserido ou atualizado, false se o local já era mais novo.
+  Future<bool> upsert(RegistrosCompanion dados) async {
+    final existing = await (select(registros)
+          ..where((t) => t.id.equals(dados.id.value)))
+        .getSingleOrNull();
+
+    if (existing == null) {
+      await into(registros).insert(dados);
+      return true;
+    }
+
+    final remoteUpdatedAt = dados.updatedAt.present ? dados.updatedAt.value : null;
+    if (remoteUpdatedAt != null && remoteUpdatedAt.isAfter(existing.updatedAt)) {
+      await (update(registros)..where((t) => t.id.equals(dados.id.value)))
+          .write(dados);
+      return true;
+    }
+
+    return false;
+  }
 
   Future<void> softDelete(String id) async {
     await (update(registros)..where((t) => t.id.equals(id))).write(

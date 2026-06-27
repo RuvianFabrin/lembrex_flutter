@@ -50,6 +50,13 @@ dependencies:
   image_picker: ^1.1.0
   file_picker: ^8.0.0
 
+  # Clipboard de imagens — implementação nativa sem super_native_extensions
+  # Windows: Win32 FFI direto (sem TSF); Linux: xclip/wl-clipboard via subprocess
+  ffi: ^2.1.0
+
+  # Drag & drop de arquivos do SO para o editor (Desktop)
+  desktop_drop: ^0.4.0
+
   # Autenticação e segurança
   local_auth: ^2.2.0
   flutter_secure_storage: ^9.0.0
@@ -69,9 +76,19 @@ dev_dependencies:
 flutter_launcher_icons:
   android: true
   ios: false
+  windows:
+    generate: true
+    image_path: "assets/icon/icon.png"
+    icon_size: 48
   image_path: "assets/icon/icon.png"
   adaptive_icon_background: "#1C1C1E"
   adaptive_icon_foreground: "assets/icon/icon.png"
+
+dependency_overrides:
+  # Patch para Flutter 3.44.4: TextInputClient.onFocusReceived() foi adicionado
+  # e appflowy_editor 3.3.0 não o implementa. Cópia local com o fix.
+  appflowy_editor:
+    path: packages/appflowy_editor
 
 flutter:
   uses-material-design: true

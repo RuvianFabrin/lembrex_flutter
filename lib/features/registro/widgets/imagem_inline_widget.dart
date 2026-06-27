@@ -24,11 +24,14 @@ import '../../configuracoes/configuracoes_provider.dart';
 class ImagemInlineWidget extends ConsumerStatefulWidget {
   final EditorState editorState;
   final String registroId;
+  // Último caminho do cursor antes do foco sair — garante inserção no lugar certo
+  final List<int>? lastCursorPath;
 
   const ImagemInlineWidget({
     super.key,
     required this.editorState,
     required this.registroId,
+    this.lastCursorPath,
   });
 
   @override
@@ -94,7 +97,15 @@ class _ImagemInlineWidgetState extends ConsumerState<ImagemInlineWidget> {
     );
 
     // URL do servidor se disponível; caso contrário URL local portável
-    final urlImagem = urlServidor ?? toLocalUrl(nomeArquivo);
+    final urlPortavel = urlServidor ?? toLocalUrl(nomeArquivo);
+
+    // Resolve srv:// → URL absoluta para renderização imediata no editor
+    final baseUrl = cfg?.apiUrl;
+    final urlImagem =
+        isSrvUrl(urlPortavel) && baseUrl != null && baseUrl.isNotEmpty
+            ? resolverSrvUrl(urlPortavel, baseUrl)
+            : urlPortavel;
+
     _inserirBlocoImagem(urlImagem);
   }
 
@@ -230,7 +241,9 @@ class _ImagemInlineWidgetState extends ConsumerState<ImagemInlineWidget> {
 
   void _inserirBlocoImagem(String url) {
     final selection = widget.editorState.selection;
+    // Usa: seleção atual > lastCursorPath salvo > final do documento
     final path = selection?.end.path ??
+        widget.lastCursorPath ??
         [widget.editorState.document.root.children.length];
 
     final imagemNode = imageNode(url: url);
