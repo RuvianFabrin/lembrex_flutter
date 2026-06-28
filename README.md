@@ -34,13 +34,25 @@ Roda em **Android**, **Linux** e **Windows** com a mesma base de código.
 
 ---
 
+## Versões testadas
+
+| Ferramenta | Versão |
+|---|---|
+| Flutter | **3.35.6** |
+| Dart | **3.9.2** |
+| FVM | qualquer versão recente |
+
+> Estas são as versões com as quais o app foi desenvolvido e testado. Use as mesmas para evitar incompatibilidades — especialmente no Dart SDK, que afeta o código gerado pelo Drift.
+
+---
+
 ## Pré-requisitos
 
 - [FVM](https://fvm.app) instalado (`dart pub global activate fvm`)
-- Flutter SDK gerenciado pelo FVM (versão fixada em `.fvm/fvm_config.json`)
+- Flutter SDK gerenciado pelo FVM — a versão **3.35.6** é instalada automaticamente pelo `fvm install`
 
 ```bash
-# Instalar a versão fixada do Flutter
+# Instalar a versão fixada do Flutter (3.35.6 / Dart 3.9.2)
 fvm install
 
 # Verificar ambiente
