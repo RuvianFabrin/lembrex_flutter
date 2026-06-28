@@ -103,7 +103,11 @@ LazyDatabase _abrirConexao() {
   return LazyDatabase(() async {
     final dir = await getApplicationDocumentsDirectory();
     final file = File(p.join(dir.path, 'lembrex.db'));
-    return NativeDatabase.createInBackground(file);
+    // createInBackground falha no Windows quando flutter_secure_storage /
+    // local_auth estão presentes — o isolate filho não encontra o sqlite3.dll.
+    // NativeDatabase (sem background) resolve e é suficiente para um app pessoal.
+    await dir.create(recursive: true);
+    return NativeDatabase(file);
   });
 }
 
